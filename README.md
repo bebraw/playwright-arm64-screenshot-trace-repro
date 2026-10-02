@@ -40,10 +40,54 @@ The screenshot-disabled cases are diagnostic controls, not performance-audit wor
 
 ## Verification
 
-Verification results will be recorded after the standalone repository is tested from a fresh clone. Earlier application-level observations were: Playwright 1.63.0 crashes with screenshot tracing enabled, finishes with that category removed, and Playwright 1.62.1 finishes with screenshots enabled.
+Verified on **2026-10-02** from a fresh GitHub clone of commit `51074c0`, using the commands above. Every case installed its own dependencies inside a fresh container. No application code, Lighthouse, host `node_modules`, or external page was involved.
 
-Those observations establish a version-dependent failure in the reported container environment. They do not establish that native Linux ARM64 or other virtualization runtimes are affected, or identify the implementation cause.
+| Playwright | Chromium | Node in image | Browser mode | Screenshots | Result | Exit | Screenshot events |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1.63.0 | 153.0.8010.12 | 24.20.0 | shell | on | Browser closes during tracing | 1 | No completed trace |
+| 1.63.0 | 153.0.8010.12 | 24.20.0 | shell | off | PASS | 0 | 0 |
+| 1.62.1 | 151.0.7922.34 | 24.18.1 | shell | on | PASS | 0 | 1 |
+| 1.63.0 | 153.0.8010.12 | 24.20.0 | full | on | GPU crashes; browser closes | 1 | No completed trace |
+| 1.63.0 | 153.0.8010.12 | 24.20.0 | full | off | PASS | 0 | 0 |
+| 1.62.1 | 151.0.7922.34 | 24.18.1 | full | on | PASS | 0 | 2 |
+
+Screenshot event counts can vary; the important outcome is a completed trace with nonempty screenshot image events when enabled. The official image comparison changes the bundled Node version as well as Playwright and Chromium; each screenshot-disabled control keeps the same image and Node as its failing case.
+
+### Environment
+
+- Host: Apple M4 Max, macOS 27.0.1.
+- Container runtime: OrbStack 2.2.3.
+- Container OS: Ubuntu 24.04.4 LTS, native `linux/arm64`.
+- Kernel: `7.0.14-orbstack-00380-ga7e0a2dc9535`.
+- Chromium launched headless; host IPC enabled; default Playwright sandbox settings.
+- The full executable case additionally passes `--disable-gpu`.
+- Playwright 1.63.0 was the latest stable release when verified.
+
+Exact image digests reported by the local ARM64 Docker engine:
+
+```text
+1.63.0-noble: mcr.microsoft.com/playwright@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27
+1.62.1-noble: mcr.microsoft.com/playwright@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e
+```
+
+### Crash Evidence
+
+`DEBUG=pw:browser ./run-docker.sh 1.63.0 on full` recorded six GPU-process exits with signal 4 before Chromium shut down. Relevant excerpts:
+
+```text
+Received signal 4 <unknown>
+ERROR:content/browser/gpu/gpu_process_host.cc:1054] GPU process exited unexpectedly: exit_code=4
+FATAL:content/browser/gpu/gpu_data_manager_impl_private.cc:417] GPU process isn't usable. Goodbye.
+```
+
+The reproduction then returned:
+
+```json
+{"platform":"linux","arch":"arm64","kernel":"7.0.14-orbstack-00380-ga7e0a2dc9535","node":"v24.20.0","playwright":"1.63.0","mode":"full","screenshots":true,"result":"FAIL","message":"page.waitForTimeout: Target page, context or browser has been closed"}
+```
+
+These results establish a version-dependent failure in the reported container environment. They do not establish that native Linux ARM64 hosts or other virtualization runtimes are affected, or identify the implementation cause. An existing Docker Desktop context was unavailable, so no second-runtime result is claimed.
 
 Playwright 1.63 introduced Chrome for Testing builds on Linux ARM64 ([release notes](https://github.com/microsoft/playwright/releases/tag/v1.63.0)). This is relevant version context, not a proven cause.
 
-This reproduction was prepared with AI assistance. Results must come from actually running the commands above.
+This reproduction and its README were prepared with AI assistance. The results above were captured by actually running the commands; the underlying cause remains unconfirmed.
