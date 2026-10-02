@@ -1,0 +1,12 @@
+{
+  "name": "playwright-arm64-screenshot-trace-repro",
+  "private": true,
+  "type": "module",
+  "description": "Standalone reproduction of bundled Chromium screenshot-tracing crashes in a Linux ARM64 container",
+  "scripts": {
+    "repro": "node repro.mjs"
+  },
+  "dependencies": {
+    "playwright": "1.63.0"
+  }
+}
